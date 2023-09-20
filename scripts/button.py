@@ -165,6 +165,34 @@ class Label:
 
 
 class TextBox:
-    def __init__(self, text, font, font_size, dim):
+    def __init__(self, text, font, dim, color=(255, 0, 0)):
+        self.font = font
+        self.dim = dim
+        self.text = self.word_wrap(text)
+        print(self.text)
+        self.height = font.get_height()
+        self.color = color
+        self.image = pygame.Surface(dim)
+        self.image.set_colorkey((0, 0, 0))
+        line_pos = [0, 0]
+        for line in self.text:
+            print('line')
+            words = self.font.render(line, True, color)
+            self.image.blit(words, line_pos)
+            line_pos[1] += self.height
 
-        pass
+    def word_wrap(self, text):
+        all_lines = list()
+        line = ''
+        max_width = self.dim[0]
+        for char in text:
+            line += char
+            if self.font.size(line)[0] > max_width:
+                all_lines.append(line)
+                line = ''
+        if line:
+            all_lines.append(line)
+        return all_lines
+
+    def render(self, surf, pos):
+        surf.blit(self.image, pos)

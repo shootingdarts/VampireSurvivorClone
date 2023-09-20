@@ -3,7 +3,7 @@ import random
 import sys
 import pygame
 
-from scripts.button import Button, Icon, Label
+from scripts.button import Button, Icon, Label, TextBox
 from scripts.particle import Particle
 from scripts.spark import Spark
 from scripts.utils import *
@@ -132,6 +132,9 @@ class Game:
         self.gold_count = Label(self, (900, 50), self.assets['coin'].img(), 16, '0', dim=(64, 32),
                                 offset=(32, 0), bg=None)
         self.boss_health_bar = None
+        self.announcement = TextBox('The mushrooms seek vengeance', pygame.font.SysFont('arialblack', 15),
+                                    (500, 50))
+        self.announce_duration = 0
 
         # buttons
         self.start_button = Button(self, (540, 120), 40, 'Start', animation=self.assets['button/log'].copy(),
@@ -176,8 +179,8 @@ class Game:
         self.frame_update = True
         self.screenshake = 0
         Enemy.health = 300
-        Boss.health = 5000
-        Boss.max_health = 5000
+        Boss.health = 500
+        Boss.max_health = 500
         self.dead = 0
         self.transition = -30
         self.entity_limit = 20
@@ -287,7 +290,7 @@ class Game:
             boss_loc = (boss_quadrant[0] * random.randint(0, 1600),
                         boss_quadrant[1] * random.randint(0, 1600))
         else:
-            boss_loc = (random.randint(-1600, 1600), random.randint(-1600, 1600))
+            boss_loc = (random.randint(-100, 100), random.randint(-100, 100))
         return boss_loc
 
     def boss_arrow(self, offset=(0, 0)):
@@ -367,6 +370,7 @@ class Game:
                         Enemy.health *= 2
                         Boss.health *= 2
                         Boss.max_health *= 2
+                        self.announce_duration = 180
 
                 self.boss_arrow(render_scroll)
 
@@ -420,6 +424,10 @@ class Game:
                 self.assets['coin'].update()
                 self.gold_count.update_image(self.assets['coin'].img(), [str(self.player.gold)]).draw(self.screen,
                                                                                                       False)
+                if self.frame_update and self.announce_duration:
+                    self.announcement.render(self.screen, (0, 750))
+                    self.announce_duration = max(self.announce_duration - 1, 0)
+
                 for boss in boss_group.sprites():
                     if boss.visibility:
                         self.boss_battle(boss.health, boss.max_health)
