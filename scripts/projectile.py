@@ -247,12 +247,13 @@ class Pointer(pygame.sprite.Sprite):
 
 
 class Shape(pygame.sprite.Sprite):
-    def __init__(self, pos, dim, shape, *groups):
+    def __init__(self, pos, dim, shape, image=None, *groups):
         super().__init__(*groups)
         self.shape = shape
         self.pos = [pos[0] - dim[0] / 2, pos[1] - dim[1] / 2]
         self.dim = dim
         self.rect = pygame.Rect(pos, dim)
+        self.image = image
 
     def collision(self, group):
         rect_hits = pygame.sprite.spritecollide(self, group, False, self.shape)

@@ -179,13 +179,13 @@ class Game:
         self.frame_update = True
         self.screenshake = 0
         Enemy.health = 300
-        Boss.health = 500
-        Boss.max_health = 500
+        Boss.health = 5000
+        Boss.max_health = 5000
         self.dead = 0
         self.transition = -30
         self.entity_limit = 20
         self.spawn_delay = 60
-        self.current_delay = 300
+        self.current_delay = 60
         enemy_group.empty()
         self.exp_orbs.empty()
         self.projectiles.empty()
@@ -362,14 +362,16 @@ class Game:
 
                 for boss in boss_group.sprites().copy():
                     boss.render(self.display, offset=render_scroll)
-                    if self.frame_update and boss.update():
+                    if self.frame_update and boss.update(render_scroll):
                         boss.kill()
                         boss.add(self.graveyard)
                         Boss(self, self.boss_location(True), (8, 10),
                              boss_group, Pointer(self, self.player.rect.center, 'bossarrow'))
-                        Enemy.health *= 2
+                        Enemy.health *= 1.5
                         Boss.health *= 2
                         Boss.max_health *= 2
+                        self.spawn_delay = max(self.spawn_delay - 10, 10)
+                        self.entity_limit += 10
                         self.announce_duration = 180
 
                 self.boss_arrow(render_scroll)

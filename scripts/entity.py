@@ -89,13 +89,7 @@ class Player(PhysicsEntity):
     def collision(self, direction):
         collision_sprites = pygame.sprite.spritecollide(self, self.collision_groups, False)
         if collision_sprites:
-            if self.i_frame == 60:
-                self.i_frame = 0
-                if self.shield:
-                    self.shield -= 50
-                else:
-                    self.health -= 50
-                self.hit(5, (255, 0, 0))
+            self.damage(50)
             if direction == 'horizontal':
                 for sprite in collision_sprites:
                     # right collision
@@ -140,6 +134,14 @@ class Player(PhysicsEntity):
             self.exp -= self.max_exp
             self.max_exp *= 2
 
+    def damage(self, amount):
+        if self.i_frame == 60:
+            if self.shield:
+                self.shield = max(int(self.shield) - amount, 0)
+            else:
+                self.health -= amount
+            self.i_frame = 0
+
     def update(self, movement=pygame.math.Vector2((0, 0)), offset=(0, 0)):
         self.old_rect = self.rect.copy()
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
@@ -158,18 +160,10 @@ class Player(PhysicsEntity):
             if potential_hits:
                 for projectile in potential_hits:
                     if pygame.sprite.collide_mask(self, projectile):
-                        if self.shield:
-                            self.shield = max(int(self.shield) - projectile.damage, 0)
-                        else:
-                            self.health -= projectile.damage
-                        self.i_frame = 0
+                        self.damage(projectile.damage)
                         if projectile.pierce > 0:
                             projectile.pierce -= 1
-                        if self.health <= 0 and not self.immortal:
-                            self.death(4, 5)
-                            return True
-                        else:
-                            self.hit(5)
+                        self.hit(5)
 
         self.pos.x += frame_movement.x
         self.rect.x = round(self.pos.x)
@@ -191,6 +185,7 @@ class Player(PhysicsEntity):
         if self.health <= 0 and not self.immortal:
             self.death(10, 10, (255, 0, 0))
             self.game.dead += 1
+            return True
         elif self.health < self.max_health:
             self.health += self.health_regen
 
@@ -280,7 +275,7 @@ class Warrior(Player):
         self.weapon_limit = 3
         self.icon_pos_x = 30
         self.shop_choice_y = 120
-        self.skill_setup = self.get_skill('slam_skill')
+        self.skill_setup = None
 
     def update(self, movement=pygame.math.Vector2((0, 0)), offset=(0, 0)):
         super().update(movement, offset)
@@ -650,8 +645,11 @@ class Boss(Enemy):
         self.defection_timer = 0
         self.defection_speed = 5
         self.attack_range = 150
-        self.attack_delay = 180
-        self.attack_timer = 0
+        self.attack_delay = 240
+        self.attack_timer = 240
+        self.attack_target = list()
+        self.attack_circle = None
+        self.charging = 300
         self.tilemap = self.game.tilemap
         self.tile_pos = (int(self.pos[0] // self.tilemap.tile_size),
                          int(self.pos[1] // self.tilemap.tile_size))
@@ -660,7 +658,40 @@ class Boss(Enemy):
                  {'type': 'stone', 'variant': 8, 'pos': self.tile_pos}})
         self.generate_tiles()
 
-    def update(self):
+    def charge(self, dis):
+        if self.charging >= 270:
+            dis.scale_to_length(2)
+            self.velocity.x = dis.x
+            self.velocity.y = -dis.y
+            if self.charging == 271:
+                self.velocity.x *= 0.1
+                self.velocity.y *= 0.1
+            pvelocity = [abs(self.charging) / self.charging * random.random() * 3, 0]
+            self.game.particles.append(Particle(self.game, 'particle', self.rect.center,
+                                                velocity=pvelocity, frame=random.randint(0, 7)))
+
+    def update(self, offset=(0, 0)):
+        dis = pygame.math.Vector2((self.player.rect.center[0] - self.rect.center[0],
+                                   self.rect.center[1] - self.player.rect.center[1]))
+        if dis.magnitude() <= 120:
+            self.charge(dis)
+            self.charging = max(self.charging - 1, 0)
+        if not self.charging:
+            self.charging = 300
+        self.pos.x += self.velocity[0]
+        self.rect.x = round(self.pos.x)
+
+        self.pos.y += self.velocity[1]
+        self.rect.y = round(self.pos.y)
+        if self.velocity.x > 0:
+            self.velocity.x = max(self.velocity.x - 0.1, 0)
+        else:
+            self.velocity.x = min(self.velocity.x + 0.1, 0)
+        if self.velocity.y > 0:
+            self.velocity.y = max(self.velocity.y - 0.1, 0)
+        else:
+            self.velocity.y = min(self.velocity.y + 0.1, 0)
+
         if not self.tl_tr:
             self.radius += 1
             self.generate_tiles()
@@ -683,19 +714,24 @@ class Boss(Enemy):
                 {str(tile4[0]) + ';' + str(tile4[1]):
                      {'type': 'stone', 'variant': 8, 'pos': tile4}})
         self.infection_timer += 1
-        dis = self.player.pos - self.pos
-        mag = dis.magnitude()
-        if mag <= self.attack_range:
-            if self.attack_timer == 0:
-                trajectory = pygame.math.Vector2((self.player.rect.center[0] - self.rect.center[0],
-                                                  self.rect.center[1] - self.player.rect.center[1]))
-                trajectory.scale_to_length(40)
-                Blade(self.game, self.rect.center, trajectory, follow=False, rotate=0, enemy=True,
-                      animation=self.game.assets['spike_attack'].copy())
-                self.attack_timer = self.attack_delay
-            else:
-                self.attack_timer = max(self.attack_timer - 1, 0)
+        self.attack_timer = min(self.attack_timer + 1, self.attack_delay)
+        if dis.magnitude() <= self.attack_range and self.attack_timer == self.attack_delay:
+            self.attack_target = self.player.rect.center
+            self.attack_circle = Shape(self.attack_target, (40, 40), pygame.sprite.collide_circle)
+            self.attack_timer = 0
+        self.attack(self.attack_target, offset)
         return super().update(False)
+
+    def attack(self, target, offset):
+        if self.attack_timer <= 60:
+            pygame.draw.circle(self.game.display, (255, 0, 0),
+                               (target[0] - offset[0], target[1] - offset[1]), 20)
+        elif self.attack_timer <= 90:
+            if pygame.sprite.collide_circle(self.player, self.attack_circle):
+                print('hit')
+                self.player.damage(50)
+            pygame.draw.circle(self.game.display, (0, 0, 255),
+                               (target[0] - offset[0], target[1] - offset[1]), 20)
 
     def death_effect(self):
         if not self.tl_tr:

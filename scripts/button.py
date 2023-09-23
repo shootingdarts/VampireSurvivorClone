@@ -165,19 +165,20 @@ class Label:
 
 
 class TextBox:
-    def __init__(self, text, font, dim, color=(255, 0, 0)):
+    def __init__(self, text, font, dim, fg=(255, 0, 0), bg=(0, 0, 0)):
         self.font = font
         self.dim = dim
         self.text = self.word_wrap(text)
         print(self.text)
         self.height = font.get_height()
-        self.color = color
+        self.fg = fg
+        self.bg = bg
         self.image = pygame.Surface(dim)
+        self.image.fill(bg)
         self.image.set_colorkey((0, 0, 0))
         line_pos = [0, 0]
         for line in self.text:
-            print('line')
-            words = self.font.render(line, True, color)
+            words = self.font.render(line, True, fg)
             self.image.blit(words, line_pos)
             line_pos[1] += self.height
 
