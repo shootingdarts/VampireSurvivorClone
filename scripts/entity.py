@@ -76,7 +76,7 @@ class Player(PhysicsEntity):
                                   self.game.auras, self)
         self.exp = 50
         self.max_exp = 50
-        self.gold = 100
+        self.gold = 200
         self.speed = 1
         self.level = 0
         self.immortal = False
@@ -248,7 +248,7 @@ class Player(PhysicsEntity):
         self.dash_speed = 10
         self.pickup_range = 75
         self.exp = 50
-        self.gold = 100
+        self.gold = 200
         self.coin_worth = 20
         self.max_exp = 50
         self.health = 100
@@ -775,4 +775,5 @@ class Boss(Enemy):
     def death(self, shake_magnitude, effect_magnitude, color=(255, 255, 255)):
         super().death(shake_magnitude, effect_magnitude, color)
         self.generate_tiles(True)
-        self.game.game_state.add('S')
+        self.game.shop_open = True
+        self.game.shop_loc = self.rect.center

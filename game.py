@@ -124,6 +124,9 @@ class Game:
         self.shooting = False
         self.victory = False
         self.frame_update = True
+        self.mouse_released = True
+        self.shop_open = False
+        self.shop_loc = tuple()
 
         # interface
         self.health_bar = Interface(self, self.player, (0, 5))
@@ -156,7 +159,9 @@ class Game:
         self.upgrade_slots = dict()
 
         # shop
-        self.shop_label = Button(self, (540, 50), 40, ['Shop'], (150, 70), bg=(69, 49, 23), fg=(219, 187, 24))
+        self.shop_label = TextBox('Shop', pygame.font.SysFont('arialblack', 10), (30, 15),
+                                  bg=(69, 49, 23), fg=(219, 187, 24))
+        self.shop_close = Button(self, (540, 700), 40, ['close'])
         self.weapon_slots = dict()
 
     def load_level(self, map_id=0):
@@ -179,8 +184,8 @@ class Game:
         self.frame_update = True
         self.screenshake = 0
         Enemy.health = 300
-        Boss.health = 5000
-        Boss.max_health = 5000
+        Boss.health = 500
+        Boss.max_health = 500
         self.dead = 0
         self.transition = -30
         self.entity_limit = 20
@@ -244,8 +249,12 @@ class Game:
 
     def shop(self):
         for name in self.weapon_slots:
-            self.weapon_slots[name].draw(self.screen)
-        if self.shop_label.draw(self.screen):
+            if self.weapon_slots[name].draw(self.screen, self.mouse_released):
+                print('clicked')
+                self.mouse_released = False
+        self.shop_label.render(self.screen, (540, 50))
+        if self.shop_close.draw(self.screen):
+            self.shop_open = False
             self.game_state.remove('S')
             self.frame_update = True
 
@@ -297,7 +306,8 @@ class Game:
         for boss in boss_group.sprites():
             dis = pygame.math.Vector2((boss.rect.center[0] - self.player.rect.center[0],
                                        self.player.rect.center[1] - boss.rect.center[1]))
-            dis.scale_to_length(100)
+            if dis.magnitude():
+                dis.scale_to_length(100)
             boss.pointer.update(dis, not boss.visibility, self.display, offset)
 
     def boss_battle(self, current_health, new_max_health):
@@ -343,6 +353,11 @@ class Game:
 
                 self.exp_orbs.update(surf=self.display, offset=render_scroll)
                 self.gold_coins.update(surf=self.display, offset=render_scroll)
+
+                if self.shop_open:
+                    self.shop_label.render(self.display, (self.shop_loc[0] - render_scroll[0], self.shop_loc[1] - render_scroll[1]))
+                    if self.player.rect.collidepoint(self.shop_loc):
+                        self.game_state.add('S')
 
                 for projectile in self.projectiles.sprites().copy():
                     projectile.render(self.display, offset=render_scroll)
@@ -439,57 +454,64 @@ class Game:
                     self.victory_screen()
                 if 'A' in self.game_state:
                     self.frame_update = False
-                    if self.skill1_button.draw(self.screen):
+                    if self.skill1_button.draw(self.screen, self.mouse_released):
                         self.player.get_skill('shield_skill')
                         self.game_state.remove('A')
-                    if self.skill2_button.draw(self.screen):
+                        self.mouse_released = False
+                    if self.skill2_button.draw(self.screen, self.mouse_released):
                         self.player.get_skill('power_skill')
                         self.game_state.remove('A')
-                    if self.skill3_button.draw(self.screen):
+                        self.mouse_released = False
+                    if self.skill3_button.draw(self.screen, self.mouse_released):
                         self.player.get_skill('slam_skill')
                         self.game_state.remove('A')
+                        self.mouse_released = False
                 elif 'L' in self.game_state:
                     self.frame_update = False
-                    if pygame.mouse.get_pressed()[0] == 0:
-                        released = True
                     if self.player.weapon_status():
-                        if self.weapon1_button.draw(self.screen, released):
+                        if self.weapon1_button.draw(self.screen, self.mouse_released):
                             self.player.equip_weapon(self.weapon_choices[0])
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
-                        if self.weapon2_button.draw(self.screen, released):
+                            self.mouse_released = False
+                        if self.weapon2_button.draw(self.screen, self.mouse_released):
                             self.player.equip_weapon(self.weapon_choices[1])
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
-                        if self.weapon3_button.draw(self.screen, released):
+                            self.mouse_released = False
+                        if self.weapon3_button.draw(self.screen, self.mouse_released):
                             self.player.equip_weapon(self.weapon_choices[2])
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
+                            self.mouse_released = False
                     else:
-                        if self.upgrade1_button.draw(self.screen, released):
+                        if self.upgrade1_button.draw(self.screen, self.mouse_released):
                             upgrade_picked = self.upgrade_choices[0]
                             GAME_UPGRADES.add_stack(upgrade_picked)
                             self.add_upgrade(upgrade_picked)
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
-                        if self.upgrade2_button.draw(self.screen, released):
+                            self.mouse_released = False
+                        if self.upgrade2_button.draw(self.screen, self.mouse_released):
                             upgrade_picked = self.upgrade_choices[1]
                             GAME_UPGRADES.add_stack(upgrade_picked)
                             self.add_upgrade(upgrade_picked)
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
-                        if self.upgrade3_button.draw(self.screen, released):
+                            self.mouse_released = False
+                        if self.upgrade3_button.draw(self.screen, self.mouse_released):
                             upgrade_picked = self.upgrade_choices[2]
                             GAME_UPGRADES.add_stack(upgrade_picked)
                             self.add_upgrade(upgrade_picked)
                             self.game_state.remove('L')
                             self.frame_update = True
                             self.movement = [False, False, False, False]
+                            self.mouse_released = False
                 elif 'S' in self.game_state:
                     self.frame_update = False
                     self.shop()
@@ -498,19 +520,16 @@ class Game:
             elif 'M' in self.game_state:
                 self.menu()
 
+            if pygame.mouse.get_pressed()[0] == 0:
+                self.mouse_released = True
+
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        pass
                     if event.button == 3:
                         self.player.dash()
-                if event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1:
-                        self.shooting = False
-                        released = True
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_d:
                         self.movement[1] = True

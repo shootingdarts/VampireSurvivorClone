@@ -52,7 +52,6 @@ class Button:
             self.image.blit(self.font.render(line, True, self.fg), self.line_pos)
             self.line_pos[1] += self.font_height
         self.rect = self.image.get_rect(center=pos)
-        self.clicked = False
 
     def update_text(self, text):
         self.text = text
@@ -80,12 +79,10 @@ class Button:
             if self.hover_effect:
                 self.hover_effect()
             if released:
-                if self.clicked and pygame.mouse.get_pressed()[0] == 0:
+                if pygame.mouse.get_pressed()[0]:
                     if self.press_effect:
                         self.press_effect()
                     return True
-                if pygame.mouse.get_pressed()[0]:
-                    self.clicked = True
         else:
             if self.animation:
                 self.animation.reset()
@@ -93,8 +90,6 @@ class Button:
                 self.image.set_colorkey((0, 0, 0))
                 self.image.blit(self.animation.img(), (0, 0))
                 self.image.blit(self.font.render(self.text, True, self.fg), self.offset)
-        if pygame.mouse.get_pressed()[0] == 0:
-            self.clicked = False
         surf.blit(self.image, self.rect.topleft)
         return False
 
@@ -116,7 +111,6 @@ class Label:
         self.text = text
         self.icon = image
         self.update_image(image, text)
-        self.clicked = False
 
     def draw(self, surf, released=True):
         surf.blit(self.image, self.rect.topleft)
@@ -125,14 +119,10 @@ class Label:
             if self.hover_effect:
                 self.hover_effect()
             if released:
-                if self.clicked and pygame.mouse.get_pressed()[0] == 0:
+                if pygame.mouse.get_pressed()[0]:
                     if self.press_effect:
                         self.press_effect()
                     return True
-                if pygame.mouse.get_pressed()[0]:
-                    self.clicked = True
-        if pygame.mouse.get_pressed()[0] == 0:
-            self.clicked = False
         return False
 
     def update_text(self, text):
@@ -169,7 +159,6 @@ class TextBox:
         self.font = font
         self.dim = dim
         self.text = self.word_wrap(text)
-        print(self.text)
         self.height = font.get_height()
         self.fg = fg
         self.bg = bg
