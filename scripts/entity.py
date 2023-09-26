@@ -9,7 +9,7 @@ from scripts.weapon import Weapon, WARRIOR_WEAPONS
 from scripts.projectile import Projectile, Blade, Shockwave, Shape
 from scripts.spark import Spark
 from scripts.interface import Cooldown
-from scripts.button import Icon, Label
+from scripts.button import Icon, Label, TextBox, Button
 
 
 class PhysicsEntity(pygame.sprite.Sprite):
@@ -306,6 +306,8 @@ class Warrior(Player):
                                                     15, equipped.stat_description(),
                                                     lambda: equipped.refine(self, self.game.weapon_slots[weapon.name]),
                                                     dim=(800, 200), offset=(200, 0))
+        self.game.refine_costs[weapon.name] = Label(self.game, (800, self.shop_choice_y + 150), self.game.assets['coin'].img(),
+                                                    10, [str(weapon.refine_cost)], dim=(100, 16), offset=(16, 0))
         self.shop_choice_y += 220
         self.icon_pos_x += 20
         self.weapon_limit -= 1
@@ -660,15 +662,16 @@ class Boss(Enemy):
 
     def charge(self, dis):
         if self.charging >= 270:
-            dis.scale_to_length(2)
-            self.velocity.x = dis.x
-            self.velocity.y = -dis.y
-            if self.charging == 271:
-                self.velocity.x *= 0.1
-                self.velocity.y *= 0.1
-            pvelocity = [abs(self.charging) / self.charging * random.random() * 3, 0]
-            self.game.particles.append(Particle(self.game, 'particle', self.rect.center,
-                                                velocity=pvelocity, frame=random.randint(0, 7)))
+            if dis.magnitude():
+                dis.scale_to_length(2)
+                self.velocity.x = dis.x
+                self.velocity.y = -dis.y
+                if self.charging == 271:
+                    self.velocity.x *= 0.1
+                    self.velocity.y *= 0.1
+                pvelocity = [abs(self.charging) / self.charging * random.random() * 3, 0]
+                self.game.particles.append(Particle(self.game, 'particle', self.rect.center,
+                                                    velocity=pvelocity, frame=random.randint(0, 7)))
 
     def update(self, offset=(0, 0)):
         dis = pygame.math.Vector2((self.player.rect.center[0] - self.rect.center[0],

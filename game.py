@@ -163,6 +163,7 @@ class Game:
                                   bg=(69, 49, 23), fg=(219, 187, 24))
         self.shop_close = Button(self, (540, 700), 40, ['close'])
         self.weapon_slots = dict()
+        self.refine_costs = dict()
 
     def load_level(self, map_id=0):
         self.game_state.add('G')
@@ -250,8 +251,9 @@ class Game:
     def shop(self):
         for name in self.weapon_slots:
             if self.weapon_slots[name].draw(self.screen, self.mouse_released):
-                print('clicked')
                 self.mouse_released = False
+            self.refine_costs[name].draw(self.screen)
+            self.refine_costs[name].update_image(self.assets['coin'].img(), [str(WARRIOR_WEAPONS.get_weapon(name).refine_cost)])
         self.shop_label.render(self.screen, (540, 50))
         if self.shop_close.draw(self.screen):
             self.shop_open = False

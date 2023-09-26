@@ -92,6 +92,9 @@ class Weapons:
         self.all_weapons = dict()
         self.acquired_weapons = dict()
 
+    def get_weapon(self, name):
+        return self.acquired_weapons[name]
+
     def add_weapon(self, weapon):
         self.all_weapons[weapon.name] = weapon
 
