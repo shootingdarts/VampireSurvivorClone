@@ -171,6 +171,17 @@ class TextBox:
             self.image.blit(words, line_pos)
             line_pos[1] += self.height
 
+    def update_text(self, text):
+        self.text = self.word_wrap(text)
+        self.image = pygame.Surface(self.dim)
+        self.image.fill(self.bg)
+        self.image.set_colorkey((0, 0, 0))
+        line_pos = [0, 0]
+        for line in self.text:
+            words = self.font.render(line, True, self.fg)
+            self.image.blit(words, line_pos)
+            line_pos[1] += self.height
+
     def word_wrap(self, text):
         all_lines = list()
         line = ''

@@ -112,6 +112,11 @@ class Game:
 
         self.tilemap = Tilemap(self, tile_size=16)
 
+        # constants
+        self.enemy_point = 100
+        self.boss_point = 1000
+
+        self.score = 0
         self.level = 0
         self.inv_upgrade_pos = [50, 200]
         self.effective_skills = dict()
@@ -138,6 +143,7 @@ class Game:
         self.announcement = TextBox('The mushrooms seek vengeance', pygame.font.SysFont('arialblack', 15),
                                     (500, 50))
         self.announce_duration = 0
+        self.score_display = TextBox('Score: 0', pygame.font.SysFont('arialblack', 15), (100, 30))
 
         # buttons
         self.start_button = Button(self, (540, 120), 40, 'Start', animation=self.assets['button/log'].copy(),
@@ -161,7 +167,7 @@ class Game:
         # shop
         self.shop_label = TextBox('Shop', pygame.font.SysFont('arialblack', 10), (30, 15),
                                   bg=(69, 49, 23), fg=(219, 187, 24))
-        self.shop_close = Button(self, (540, 700), 40, ['close'])
+        self.shop_close = Button(self, (540, 750), 30, ['Close'], (90, 45))
         self.weapon_slots = dict()
         self.refine_costs = dict()
 
@@ -176,6 +182,10 @@ class Game:
         WARRIOR_WEAPONS.reset()
         self.skill_select()
 
+        # constants
+        self.enemy_point = 100
+        self.boss_point = 1000
+        self.score = 0
         self.scroll = [0, 0]
         self.inv_upgrade_pos = [50, 200]
         self.particles = []
@@ -376,6 +386,7 @@ class Game:
                     if self.frame_update and enemy.update():
                         enemy.kill()
                         self.entity_limit += 1
+                        self.score += self.enemy_point
 
                 for boss in boss_group.sprites().copy():
                     boss.render(self.display, offset=render_scroll)
@@ -384,9 +395,16 @@ class Game:
                         boss.add(self.graveyard)
                         Boss(self, self.boss_location(True), (8, 10),
                              boss_group, Pointer(self, self.player.rect.center, 'bossarrow'))
+                        self.score += self.boss_point
+                        # difficulty scaling
                         Enemy.health *= 1.5
                         Boss.health *= 2
                         Boss.max_health *= 2
+                        self.entity_limit += 10
+                        # point scaling
+                        self.enemy_point += 20
+                        self.boss_point += 200
+
                         self.spawn_delay = max(self.spawn_delay - 10, 10)
                         self.entity_limit += 10
                         self.announce_duration = 180
@@ -443,6 +461,9 @@ class Game:
                 self.assets['coin'].update()
                 self.gold_count.update_image(self.assets['coin'].img(), [str(self.player.gold)]).draw(self.screen,
                                                                                                       False)
+                self.score_display.update_text(f'Score: {self.score}')
+                self.score_display.render(self.screen, (540, 30))
+
                 if self.frame_update and self.announce_duration:
                     self.announcement.render(self.screen, (0, 750))
                     self.announce_duration = max(self.announce_duration - 1, 0)
