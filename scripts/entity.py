@@ -128,11 +128,10 @@ class Player(PhysicsEntity):
 
     def exp_check(self):
         if self.exp >= self.max_exp:
-            self.game.game_state.add('L')
-            self.game.upgrade_select()
+            self.game.level_up_screen()
             self.level += 1
             self.exp -= self.max_exp
-            self.max_exp *= 2
+            self.max_exp *= 1.5
 
     def damage(self, amount):
         if self.i_frame == 60:
@@ -291,7 +290,7 @@ class Warrior(Player):
         self.skill_cd = max(self.skill_cd - 1, 0)
 
     def weapon_status(self):
-        return self.weapon_limit and not ((self.level - 1) % 3)
+        return self.weapon_limit and not (self.level % 3)
 
     def use_weapon(self, weapon, cd=0):
         target = self.enemy_search(weapon.reach)
@@ -316,18 +315,6 @@ class Warrior(Player):
         super().reset()
         self.weapon_timer = list()
         self.weapons = list()
-
-    def exp_check(self):
-        if self.exp >= self.max_exp:
-            self.game.game_state.add('L')
-            self.game.game_state.add('I')
-            self.level += 1
-            if self.weapon_status():
-                self.game.weapon_select()
-            else:
-                self.game.upgrade_select()
-            self.exp -= self.max_exp
-            self.max_exp *= 2
 
     def get_skill(self, name):
         skill = self.game.assets[name].copy()

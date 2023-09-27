@@ -120,7 +120,6 @@ class Game:
         self.level = 0
         self.inv_upgrade_pos = [50, 200]
         self.effective_skills = dict()
-        self.game_state = set('M')
         self.screenshake = 0
         self.visible_range = list()
         self.spawn_delay = 60
@@ -160,6 +159,7 @@ class Game:
                                      offset=(64, 110))
         self.game_over_label = Button(self, (540, 100), 40, 'Game Over', animation=self.assets['button/log'].copy(),
                                       offset=(64, 110))
+        self.skill_buttons()
 
         # inventory
         self.upgrade_slots = dict()
@@ -172,15 +172,12 @@ class Game:
         self.refine_costs = dict()
 
     def load_level(self, map_id=0):
-        self.game_state.add('G')
-        self.game_state.add('A')
         self.tilemap = Tilemap(self, tile_size=16)
         self.assets['grass_tiles'] = self.tilemap.generate_tile(6)
         self.tilemap.generate_tiles()
         player_group.empty()
         self.player = Warrior(self, (0, 0), (8, 15), player_group, self.visible_enemy)
         WARRIOR_WEAPONS.reset()
-        self.skill_select()
 
         # constants
         self.enemy_point = 100
@@ -227,7 +224,7 @@ class Game:
         else:
             upgrade.hover_description.update_text(text)
 
-    def upgrade_select(self):
+    def upgrade_buttons(self):
         self.upgrade_choices = GAME_UPGRADES.random_upgrades(3)
         self.upgrade1_button = Label(self, (200, 120), self.assets[self.upgrade_choices[0].source], 20,
                                      [self.upgrade_choices[0].name] + self.upgrade_choices[0].effect_description(),
@@ -239,7 +236,7 @@ class Game:
                                      [self.upgrade_choices[2].name] + self.upgrade_choices[2].effect_description(),
                                      lambda: self.upgrade_choices[2].effects(self.player))
 
-    def weapon_select(self):
+    def weapon_buttons(self):
         self.weapon_choices = WARRIOR_WEAPONS.random_weapons(3)
         self.weapon1_button = Label(self, (200, 120), self.assets[self.weapon_choices[0].source], 20,
                                     [self.weapon_choices[0].name, '', self.weapon_choices[0].description])
@@ -248,7 +245,7 @@ class Game:
         self.weapon3_button = Label(self, (200, 480), self.assets[self.weapon_choices[2].source], 20,
                                     [self.weapon_choices[2].name, '', self.weapon_choices[2].description])
 
-    def skill_select(self):
+    def skill_buttons(self):
         self.skill1_button = Label(self, (200, 120), self.assets['shield_skill'].img(), 20,
                                    ['Shield Up', '', 'Blocks incoming damage'])
         self.skill2_button = Label(self, (200, 300), self.assets['power_skill'].img(), 20,
@@ -258,50 +255,9 @@ class Game:
                                    ['Shield Slam', '',
                                     'Slam your shield to the ground, stunning and', ' damaging enemies with shock waves'])
 
-    def shop(self):
-        for name in self.weapon_slots:
-            if self.weapon_slots[name].draw(self.screen, self.mouse_released):
-                self.mouse_released = False
-            self.refine_costs[name].draw(self.screen)
-            self.refine_costs[name].update_image(self.assets['coin'].img(), [str(WARRIOR_WEAPONS.get_weapon(name).refine_cost)])
-        self.shop_label.render(self.screen, (540, 50))
-        if self.shop_close.draw(self.screen):
-            self.shop_open = False
-            self.game_state.remove('S')
-            self.frame_update = True
-
     def inventory(self):
         for name in self.upgrade_slots:
             self.upgrade_slots[name].draw(self.screen)
-
-    def menu(self):
-        if self.start_button.draw(self.screen):
-            self.game_state.clear()
-            self.load_level()
-        if self.quit_button.draw(self.screen):
-            pygame.quit()
-            sys.exit()
-
-    def pause(self):
-        if self.resume_button.draw(self.screen):
-            self.game_state.remove('P')
-        if self.restart_button.draw(self.screen):
-            self.game_state.clear()
-            self.load_level()
-        if self.option_button.draw(self.screen):
-            pass
-        if self.quit_button.draw(self.screen):
-            pygame.quit()
-            sys.exit()
-
-    def game_over(self):
-        self.game_over_label.draw(self.screen)
-        if self.restart_button.draw(self.screen):
-            self.game_state.clear()
-            self.load_level()
-        if self.quit_button.draw(self.screen):
-            pygame.quit()
-            sys.exit()
 
     def boss_location(self, depend):
         if depend:
@@ -325,9 +281,393 @@ class Game:
     def boss_battle(self, current_health, new_max_health):
         self.boss_health_bar.update(current_health, new_max_health).draw(self.screen)
 
+    # screens
+    def main_menu(self):
+        while True:
+            if self.start_button.draw(self.screen):
+                self.mouse_released = False
+                self.load_level()
+                self.ability_select_screen()
+                self.in_game()
+            if self.quit_button.draw(self.screen):
+                pygame.quit()
+                sys.exit()
+            if pygame.mouse.get_pressed()[0] == 0:
+                self.mouse_released = True
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 3:
+                        self.player.dash()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_d:
+                        self.movement[1] = True
+                    if event.key == pygame.K_a:
+                        self.movement[0] = True
+                    if event.key == pygame.K_w:
+                        self.movement[2] = True
+                    if event.key == pygame.K_s:
+                        self.movement[3] = True
+                    if event.key == pygame.K_x:
+                        self.player.dash()
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_d:
+                        self.movement[1] = False
+                    if event.key == pygame.K_a:
+                        self.movement[0] = False
+                    if event.key == pygame.K_w:
+                        self.movement[2] = False
+                    if event.key == pygame.K_s:
+                        self.movement[3] = False
+
+            pygame.display.update()
+            self.clock.tick(60)
+
+    def shop(self):
+        shopping = True
+        while shopping:
+            self.display_2.blit(self.display, (0, 0))
+            self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+            for name in self.weapon_slots:
+                if self.weapon_slots[name].draw(self.screen, self.mouse_released):
+                    self.mouse_released = False
+                    self.movement = [False, False, False, False]
+                self.refine_costs[name].draw(self.screen)
+                self.refine_costs[name].update_image(self.assets['coin'].img(), [str(WARRIOR_WEAPONS.get_weapon(name).refine_cost)])
+            self.shop_label.render(self.screen, (540, 50))
+            if self.shop_close.draw(self.screen):
+                self.shop_open = False
+                shopping = False
+            self.assets['coin'].update()
+            self.gold_count.update_image(self.assets['coin'].img(), [str(self.player.gold)]).draw(self.screen, False)
+            self.score_display.update_text(f'Score: {self.score}')
+            self.score_display.render(self.screen, (540, 30))
+            if pygame.mouse.get_pressed()[0] == 0:
+                self.mouse_released = True
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            pygame.display.update()
+            self.clock.tick(60)
+
+    def pause_screen(self):
+        paused = True
+        while paused:
+            self.display_2.blit(self.display, (0, 0))
+            self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+            if self.resume_button.draw(self.screen):
+                paused = False
+            if self.restart_button.draw(self.screen):
+                self.load_level()
+                self.in_game()
+            if self.option_button.draw(self.screen):
+                pass
+            if self.quit_button.draw(self.screen):
+                pygame.quit()
+                sys.exit()
+            self.assets['coin'].update()
+            self.gold_count.update_image(self.assets['coin'].img(), [str(self.player.gold)]).draw(self.screen,
+                                                                                                  False)
+            self.score_display.update_text(f'Score: {self.score}')
+            self.score_display.render(self.screen, (540, 30))
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.K_ESCAPE:
+                    paused = False
+            pygame.display.update()
+            self.clock.tick(60)
+
+    def game_over(self):
+        over = True
+        while over:
+            self.display_2.blit(self.display, (0, 0))
+            self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+            self.game_over_label.draw(self.screen)
+            if self.restart_button.draw(self.screen):
+                self.load_level()
+                over = False
+            if self.quit_button.draw(self.screen):
+                pygame.quit()
+                sys.exit()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            pygame.display.update()
+            self.clock.tick(60)
+
+    def ability_select_screen(self):
+        self.screen.fill((0, 0, 0))
+        selecting = True
+        while selecting:
+            if self.skill1_button.draw(self.screen, self.mouse_released):
+                self.player.get_skill('shield_skill')
+                selecting = False
+                self.mouse_released = False
+            if self.skill2_button.draw(self.screen, self.mouse_released):
+                self.player.get_skill('power_skill')
+                selecting = False
+                self.mouse_released = False
+            if self.skill3_button.draw(self.screen, self.mouse_released):
+                self.player.get_skill('slam_skill')
+                selecting = False
+                self.mouse_released = False
+            if pygame.mouse.get_pressed()[0] == 0:
+                self.mouse_released = True
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            pygame.display.update()
+            self.clock.tick(60)
+        self.screen.fill((0, 0, 0))
+
+    def level_up_screen(self):
+        leveling = True
+        if self.player.weapon_status():
+            self.weapon_buttons()
+            while leveling:
+                self.display_2.blit(self.display, (0, 0))
+                self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+                if self.weapon1_button.draw(self.screen, self.mouse_released):
+                    self.player.equip_weapon(self.weapon_choices[0])
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if self.weapon2_button.draw(self.screen, self.mouse_released):
+                    self.player.equip_weapon(self.weapon_choices[1])
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if self.weapon3_button.draw(self.screen, self.mouse_released):
+                    self.player.equip_weapon(self.weapon_choices[2])
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if pygame.mouse.get_pressed()[0] == 0:
+                    self.mouse_released = True
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                pygame.display.update()
+                self.clock.tick(60)
+        else:
+            self.upgrade_buttons()
+            while leveling:
+                self.display_2.blit(self.display, (0, 0))
+                self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+                if self.upgrade1_button.draw(self.screen, self.mouse_released):
+                    upgrade_picked = self.upgrade_choices[0]
+                    GAME_UPGRADES.add_stack(upgrade_picked)
+                    self.add_upgrade(upgrade_picked)
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if self.upgrade2_button.draw(self.screen, self.mouse_released):
+                    upgrade_picked = self.upgrade_choices[1]
+                    GAME_UPGRADES.add_stack(upgrade_picked)
+                    self.add_upgrade(upgrade_picked)
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if self.upgrade3_button.draw(self.screen, self.mouse_released):
+                    upgrade_picked = self.upgrade_choices[2]
+                    GAME_UPGRADES.add_stack(upgrade_picked)
+                    self.add_upgrade(upgrade_picked)
+                    leveling = False
+                    self.movement = [False, False, False, False]
+                    self.mouse_released = False
+                if pygame.mouse.get_pressed()[0] == 0:
+                    self.mouse_released = True
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                pygame.display.update()
+                self.clock.tick(60)
+
     def victory_screen(self):
-        if self.victory_button.draw(self.screen):
-            self.game_state = set('M')
+        self.victory_button.draw(self.screen)
+
+    def in_game(self):
+        while True:
+            self.player.exp_check()
+            self.scroll[0] += (self.player.rect.centerx - self.display.get_width() / 2 - self.scroll[0])
+            self.scroll[1] += (self.player.rect.centery - self.display.get_height() / 2 - self.scroll[1])
+            render_scroll = (int(self.scroll[0]), int(self.scroll[1]))
+            # render_scroll = (0, 0)
+            self.visible_range = ((render_scroll[0], render_scroll[0] + self.display.get_width()),
+                                  (render_scroll[1], render_scroll[1] + self.display.get_height()))
+
+            if self.frame_update and not self.current_delay and self.entity_limit and self.tilemap.infected_tiles:
+                spawn = random.choice(list(self.tilemap.infected_tiles.items()))
+                loc = (spawn[1]['pos'][0] * self.tilemap.tile_size, spawn[1]['pos'][1] * self.tilemap.tile_size)
+                if random.randint(0, 3) < 1:
+                    Spitter(self, loc, (8, 10), enemy_group)
+                else:
+                    Enemy(self, loc, (8, 10), enemy_group)
+                self.current_delay = self.spawn_delay
+                self.entity_limit -= 1
+            else:
+                self.current_delay = max(0, self.current_delay - 1)
+
+            self.tilemap.render(self.display, offset=render_scroll)
+
+            self.exp_orbs.update(surf=self.display, offset=render_scroll)
+            self.gold_coins.update(surf=self.display, offset=render_scroll)
+
+            for projectile in self.projectiles.sprites().copy():
+                projectile.render(self.display, offset=render_scroll)
+                if self.frame_update and projectile.update():
+                    projectile.kill()
+
+            for enemy_projectile in self.enemy_projectiles.sprites().copy():
+                enemy_projectile.render(self.display, offset=render_scroll)
+                if self.frame_update and enemy_projectile.update():
+                    enemy_projectile.kill()
+
+            for enemy in enemy_group.sprites().copy():
+                enemy.render(self.display, offset=render_scroll)
+                if self.frame_update and enemy.update():
+                    enemy.kill()
+                    self.entity_limit += 1
+                    self.score += self.enemy_point
+
+            for boss in boss_group.sprites().copy():
+                boss.render(self.display, offset=render_scroll)
+                if self.frame_update and boss.update(render_scroll):
+                    boss.kill()
+                    boss.add(self.graveyard)
+                    Boss(self, self.boss_location(True), (8, 10),
+                         boss_group, Pointer(self, self.player.rect.center, 'bossarrow'))
+                    self.score += self.boss_point
+                    # difficulty scaling
+                    Enemy.health *= 1.5
+                    Boss.health *= 2
+                    Boss.max_health *= 2
+                    self.entity_limit += 10
+                    # point scaling
+                    self.enemy_point += 20
+                    self.boss_point += 200
+
+                    self.spawn_delay = max(self.spawn_delay - 10, 10)
+                    self.entity_limit += 10
+                    self.announce_duration = 180
+
+            self.boss_arrow(render_scroll)
+
+            if self.shop_open:
+                self.shop_label.render(self.display,
+                                       (self.shop_loc[0] - render_scroll[0], self.shop_loc[1] - render_scroll[1]))
+                if self.player.rect.collidepoint(self.shop_loc):
+                    self.shop()
+
+            for ghost in self.graveyard.sprites().copy():
+                if self.frame_update and ghost.death_effect():
+                    ghost.remove(self.graveyard)
+
+            for key, skill in self.effective_skills.copy().items():
+                if self.frame_update and skill(self.display, render_scroll):
+                    self.effective_skills.pop(key)
+            if not self.dead:
+                move_vector = pygame.math.Vector2((self.movement[1] - self.movement[0],
+                                                   self.movement[3] - self.movement[2]))
+                if self.frame_update:
+                    self.player.update(move_vector, offset=render_scroll)
+                    self.player.pickup_circle.update(self.display)
+                self.player.render(self.display, offset=render_scroll)
+            else:
+                self.game_over()
+
+            for spark in self.sparks.copy():
+                spark.render(self.display, offset=render_scroll)
+                if self.frame_update and spark.update():
+                    self.sparks.remove(spark)
+
+            """
+            display_mask = pygame.mask.from_surface(self.display)
+            display_silhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), unsetcolor=(0, 0, 0, 0))
+            for offset in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                self.display_2.blit(display_silhouette, offset)
+            """
+            for particle in self.particles.copy():
+                particle.render(self.display, offset=render_scroll)
+                if self.frame_update and particle.update():
+                    self.particles.remove(particle)
+
+            if self.frame_update:
+                self.clouds.update().render(self.display, offset=render_scroll)
+
+            # display interface update
+            self.health_bar.update(self.player.health, self.player.max_health).draw(self.display)
+            self.exp_bar.update(self.player.exp, self.player.max_exp).draw(self.display)
+
+            self.display_2.blit(self.display, (0, 0))
+
+            self.screen.blit(pygame.transform.scale(self.display_2, self.screen.get_size()), (0, 0))
+
+            # screen interface update
+            self.assets['coin'].update()
+            self.gold_count.update_image(self.assets['coin'].img(), [str(self.player.gold)]).draw(self.screen,
+                                                                                                  False)
+            self.score_display.update_text(f'Score: {self.score}')
+            self.score_display.render(self.screen, (540, 30))
+
+            if self.frame_update and self.announce_duration:
+                self.announcement.render(self.screen, (0, 750))
+                self.announce_duration = max(self.announce_duration - 1, 0)
+
+            for boss in boss_group.sprites():
+                if boss.visibility:
+                    self.boss_battle(boss.health, boss.max_health)
+
+            if self.victory:
+                self.frame_update = False
+                self.victory_screen()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 3:
+                        self.player.dash()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_d:
+                        self.movement[1] = True
+                    if event.key == pygame.K_a:
+                        self.movement[0] = True
+                    if event.key == pygame.K_w:
+                        self.movement[2] = True
+                    if event.key == pygame.K_s:
+                        self.movement[3] = True
+                    if event.key == pygame.K_x:
+                        self.player.dash()
+                    if event.key == pygame.K_ESCAPE:
+                        self.pause_screen()
+                    if event.key == pygame.K_i:
+                        self.inventory()
+                    if event.key == pygame.K_q:
+                        self.effective_skills['q'] = self.player.skill_setup()
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_d:
+                        self.movement[1] = False
+                    if event.key == pygame.K_a:
+                        self.movement[0] = False
+                    if event.key == pygame.K_w:
+                        self.movement[2] = False
+                    if event.key == pygame.K_s:
+                        self.movement[3] = False
+
+            pygame.display.update()
+            self.clock.tick(60)
 
     def run(self):
         self.sfx['ambience'].play(-1)
@@ -589,4 +929,4 @@ class Game:
 
 
 # print(pygame.font.get_fonts())
-Game().run()
+Game().main_menu()
