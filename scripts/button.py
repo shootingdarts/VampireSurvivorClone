@@ -17,12 +17,16 @@ class Icon:
             self.image.fill(bg)
         self.rect = self.image.get_rect(topleft=pos)
 
-    def draw(self, surf):
+    def draw(self, surf, offset=None):
         cursor = pygame.mouse.get_pos()
         if self.rect.collidepoint(cursor):
             if self.hover_effect:
                 self.hover_effect()
-        surf.blit(self.image, self.rect.topleft)
+        if offset:
+            self.rect.topleft = (self.pos[0] + offset[0], self.pos[1] + offset[1])
+            surf.blit(self.image, self.rect.topleft)
+        else:
+            surf.blit(self.image, self.rect.topleft)
 
 
 class Button:
