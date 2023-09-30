@@ -199,6 +199,8 @@ class Game:
         self.inventory_open = False
         self.screenshake = 0
         Enemy.health = 300
+        Enemy.scaling = 1
+        Boss.scaling = 1
         Boss.health = 500
         Boss.max_health = 500
         self.dead = 0
@@ -583,7 +585,9 @@ class Game:
                          boss_group, Pointer(self, self.player.rect.center, 'bossarrow'))
                     self.score += self.boss_point
                     # difficulty scaling
+                    Enemy.scaling += 0.5
                     Enemy.health *= 1.5
+                    Boss.scaling += 0.5
                     Boss.health *= 2
                     Boss.max_health *= 2
                     self.entity_limit += 10

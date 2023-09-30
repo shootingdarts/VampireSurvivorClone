@@ -3,7 +3,7 @@ import pygame
 import random
 
 from scripts.aura import Aura
-from scripts.collectible import Collectible
+from scripts.collectible import Collectible, ExperienceOrb, Coin
 from scripts.particle import Particle
 from scripts.weapon import Weapon, WARRIOR_WEAPONS
 from scripts.projectile import Projectile, Blade, Shockwave, Shape
@@ -34,7 +34,6 @@ class PhysicsEntity(pygame.sprite.Sprite):
 
     def death(self, shake_magnitude, effect_magnitude, color=(255, 255, 255)):
         self.game.sfx['hit'].play()
-        self.game.screenshake = max(shake_magnitude, self.game.screenshake)
         for i in range(effect_magnitude):
             angle = random.random() * 2 * math.pi
             speed = random.random() * 5
@@ -56,8 +55,8 @@ class Player(PhysicsEntity):
         self.rect = self.image.get_rect(topleft=pos)
         self.pos = pygame.math.Vector2(self.rect.topleft)
         self.old_rect = self.rect.copy()
-        self.exp_gain = 80
-        self.coin_worth = 20
+        self.exp_multi = 1
+        self.coin_multi = 1
         self.health = 100
         self.max_health = 100
         self.health_regen = 0.05
@@ -144,12 +143,12 @@ class Player(PhysicsEntity):
     def update(self, movement=pygame.math.Vector2((0, 0)), offset=(0, 0)):
         self.old_rect = self.rect.copy()
         self.collisions = {'up': False, 'down': False, 'right': False, 'left': False}
-        exp_collected = len(pygame.sprite.spritecollide(self.pickup_circle, self.game.exp_orbs,
-                                                    True, pygame.sprite.collide_circle))
-        self.exp += exp_collected * self.exp_gain
-        coin_collected = len(pygame.sprite.spritecollide(self.pickup_circle, self.game.gold_coins,
-                                                         True, pygame.sprite.collide_circle))
-        self.gold += coin_collected * self.coin_worth
+        orbs = pygame.sprite.spritecollide(self.pickup_circle, self.game.exp_orbs, True, pygame.sprite.collide_circle)
+        for orb in orbs:
+            self.exp += orb.exp * self.exp_multi
+        coins = pygame.sprite.spritecollide(self.pickup_circle, self.game.gold_coins, True, pygame.sprite.collide_circle)
+        for coin in coins:
+            self.gold += coin.gold * self.coin_multi
         frame_movement = movement * self.speed + self.velocity
 
         if self.i_frame != 60:
@@ -248,7 +247,8 @@ class Player(PhysicsEntity):
         self.pickup_range = 75
         self.exp = 50
         self.gold = 200
-        self.coin_worth = 20
+        self.exp_multi = 1
+        self.coin_multi = 1
         self.max_exp = 50
         self.health = 100
         self.max_health = 100
@@ -409,6 +409,7 @@ class Warrior(Player):
 class Enemy(PhysicsEntity):
 
     health = 300
+    scaling = 1
 
     def __init__(self, game, pos, size, groups, e_type='mushroom', action='jump'):
         super().__init__(game, e_type, pos, size, groups)
@@ -427,9 +428,19 @@ class Enemy(PhysicsEntity):
 
     def death(self, shake_magnitude, effect_magnitude, color=(255, 255, 255)):
         super().death(shake_magnitude, effect_magnitude, color)
-        Collectible(pygame.math.Vector2(4, 4), self.pos, self.game.exp_orbs, (0, 255, 0), self.player)
-        if random.randint(0, 9) == 0:
-            Collectible(pygame.math.Vector2(5, 5), self.pos, self.game.gold_coins, (212, 175, 55), self.player)
+        if self.scaling >= 2:
+            orb_color = (0, 0, 255)
+        elif self.scaling >= 3:
+            orb_color = (255, 0, 0)
+        else:
+            orb_color = (0, 255, 0)
+        ExperienceOrb(pygame.math.Vector2(4, 4), self.pos, self.game.exp_orbs, orb_color, self.player, 50 * self.scaling)
+        padding = math.floor(self.scaling - 1)
+        amount = random.randint(padding, 3 + padding)
+        for i in range(amount):
+            position = pygame.math.Vector2(self.pos[0] + random.randint(-i, i) * 8, self.pos[1] + random.randint(-i, i) * 8)
+            Coin(pygame.math.Vector2(8, 8), position, self.game.gold_coins, (212, 175, 55), self.player,
+                 self.game.assets['coin'], 2)
 
     def collision(self, direction):
         collision_sprites = pygame.sprite.spritecollide(self, self.groups, False)
@@ -718,8 +729,7 @@ class Boss(Enemy):
                                (target[0] - offset[0], target[1] - offset[1]), 20)
         elif self.attack_timer <= 90:
             if pygame.sprite.collide_circle(self.player, self.attack_circle):
-                print('hit')
-                self.player.damage(50)
+                self.player.damage(50 * self.scaling)
             pygame.draw.circle(self.game.display, (0, 0, 255),
                                (target[0] - offset[0], target[1] - offset[1]), 20)
 
@@ -763,7 +773,29 @@ class Boss(Enemy):
         random.shuffle(self.bl_tl)
 
     def death(self, shake_magnitude, effect_magnitude, color=(255, 255, 255)):
-        super().death(shake_magnitude, effect_magnitude, color)
+        self.game.sfx['hit'].play()
+        for i in range(effect_magnitude):
+            angle = random.random() * 2 * math.pi
+            speed = random.random() * 5
+            self.game.sparks.append(Spark(self.rect.center, angle, 2 + random.random(), color))
+            self.game.particles.append(Particle(self.game, 'particle', self.rect.center,
+                                                velocity=[math.cos(angle + math.pi) * speed * 0.5,
+                                                          math.sin(angle + math.pi) * speed * 0.5],
+                                                frame=random.randint(0, 7)))
+        if self.scaling >= 2:
+            orb_color = (0, 0, 255)
+        elif self.scaling >= 3:
+            orb_color = (255, 0, 0)
+        else:
+            orb_color = (0, 255, 0)
+        ExperienceOrb(pygame.math.Vector2(4, 4), self.pos, self.game.exp_orbs, orb_color, self.player,
+                      250 * self.scaling)
+        padding = math.floor(self.scaling - 1)
+        amount = random.randint(padding, 15 + padding)
+        for i in range(amount):
+            position = pygame.math.Vector2(self.pos[0] + random.randint(-i, i) * 8, self.pos[1] + random.randint(-i, i) * 8)
+            Coin(pygame.math.Vector2(8, 8), position, self.game.gold_coins, (212, 175, 55), self.player,
+                 self.game.assets['coin'], 2)
         self.generate_tiles(True)
         self.game.shop_open = True
         self.game.shop_loc = self.rect.center
